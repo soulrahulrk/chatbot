@@ -38,6 +38,10 @@ No Firebase, no polling, no Supabase, no third-party realtime services — realt
 - Centralized error handling for network errors, database errors, and validation errors
 - Enter to send, Shift+Enter for a new line, whitespace trimming, empty-message rejection
 - Send button (and Enter key) disabled while a message is in flight
+- **Username-based dummy login** — a lightweight join modal captures a display name and persists it in `localStorage` (no password/session, since neither brief specifies real authentication)
+- **Typing indicator** — "X is typing..." shown live to other users while someone is composing a message
+- **Online/offline presence** — header badge shows how many users are currently connected, with names on hover
+- **Delivered/read receipts** — sender's own messages show a single check (sent), double gray check (delivered to at least one other client), or double blue check (read by at least one other client)
 
 ## Tech Stack
 
@@ -207,6 +211,16 @@ npm run build    # outputs client/dist
 | `send_message`       | client → server   | `{ username, message }` + ack callback | Client asks the server to persist & broadcast a message |
 | `receive_message`    | server → client   | saved message document                 | Broadcast after a socket-originated send              |
 | `new_message`        | server → client   | saved message document                 | Broadcast after a REST-originated (`POST`) send       |
+| `join`               | client → server   | `{ username }`                         | Registers this socket's username for presence tracking |
+| `online_users`       | server → client   | `string[]`                              | Full list of currently-online usernames, sent after every join/disconnect |
+| `typing`             | client → server   | `{ username, isTyping }`                | Client reports it started/stopped composing a message |
+| `user_typing`        | server → client   | `{ username, isTyping }`                | Broadcast to everyone except the typist                |
+| `message_delivered`  | client → server   | `{ messageId }`                         | A client acknowledges it received a message live       |
+| `delivered_receipt`  | server → client   | `{ messageId }`                         | Broadcast so the original sender can mark it delivered |
+| `message_read`       | client → server   | `{ messageId }`                         | A client reports it has read a message (tab focused)   |
+| `read_receipt`       | server → client   | `{ messageId }`                         | Broadcast so the original sender can mark it read       |
+
+Presence, typing, and receipt state is held in memory only (`server/socket/presence.js`) — it is never written to MongoDB, since it only describes the state of currently-open connections and has no meaning after a restart. Delivered/read receipts are only requested for messages that arrive live over the socket after a client connects, not for the historical backlog loaded via REST — otherwise loading history would fire a burst of receipt events for every past message.
 
 ## API Documentation
 
@@ -362,6 +376,8 @@ curl -X POST http://localhost:5000/api/messages \
 - **Plain Tailwind, no component library.** The brief asked for a clean custom UI; a component kit would fight that requirement and add bundle weight for a small number of screens.
 - **Client-side display name instead of real authentication.** Neither brief specifies a user/auth model, and the `Message` schema only has `username` + `message`. A lightweight join modal that stores the name in `localStorage` satisfies "username-based dummy login" (a bonus item) without over-building an auth system nothing else depends on.
 - **MongoDB/Mongoose over SQLite.** Chat messages are naturally schema-light documents, and Mongoose's `timestamps: true` gives `createdAt`/`updatedAt` for free alongside the explicit `timestamp` field the spec calls out.
+- **Presence/typing/receipts are in-memory only, never persisted.** `server/socket/presence.js` holds a `socket.id -> username` map that resets on server restart. This state only ever describes currently-open connections — persisting it would imply a history/audit trail that was never asked for and would need its own cleanup logic for stale entries.
+- **"Delivered"/"read" are approximations, not per-recipient tracking.** Because this is a single global room rather than 1:1 conversations, a message is marked delivered as soon as *any* other connected client's browser receives it live, and read as soon as *any* other client has it visible in a focused tab — not "delivered/read by every participant." A true per-recipient receipt matrix would need a persisted room membership model, which is out of scope for a global chat.
 
 ## Assumptions
 
@@ -369,13 +385,15 @@ curl -X POST http://localhost:5000/api/messages \
 - `CLIENT_URL` supports a single origin for CORS/Socket.io. Supporting multiple origins (e.g. staging + production) is listed under Future Improvements.
 - Chat is a single global room — there is no concept of multiple rooms/channels or direct messages, since none were requested.
 - Message history is unpaginated (`GET /api/messages` returns the entire collection). Fine for a demo/assignment dataset size; see Future Improvements for pagination.
+- Delivered/read receipts only apply to messages received live after connecting; historical messages loaded via `GET /api/messages` on refresh are not retroactively marked delivered/read.
+- Online/offline presence is per-username (not per-tab): if the same name is used in two tabs, it counts once in the online list, and it drops from the list only once every tab using that name has disconnected.
 
 ## Future Improvements
 
 - User authentication (JWT-based sessions) and per-user identity instead of a client-chosen display name
 - Multiple chat rooms/channels and private direct messages
 - Pagination / infinite scroll for chat history once the collection grows large
-- Typing indicators and read receipts via additional Socket.io events
+- Per-recipient delivered/read tracking (requires a room-membership model instead of a single global room)
 - Message editing/deletion with optimistic UI updates
 - Automated test suite (Jest + Supertest for the API, React Testing Library for components, a Socket.io integration test for the realtime flow)
 - Rate limiting and profanity/spam filtering on the `POST /api/messages` and `send_message` paths

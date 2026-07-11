@@ -1,7 +1,7 @@
 import useSocket from '../hooks/useSocket.js';
 import logo from '../assets/logo.svg';
 
-function Header({ username, onChangeUsername }) {
+function Header({ username, onChangeUsername, onlineUsers = [] }) {
   const { isConnected } = useSocket();
 
   return (
@@ -19,15 +19,24 @@ function Header({ username, onChangeUsername }) {
         </div>
       </div>
 
-      {username && (
-        <button
-          type="button"
-          onClick={onChangeUsername}
-          className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div
+          className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
+          title={onlineUsers.length > 0 ? onlineUsers.join(', ') : 'No one else online'}
         >
-          {username}
-        </button>
-      )}
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          {onlineUsers.length} online
+        </div>
+        {username && (
+          <button
+            type="button"
+            onClick={onChangeUsername}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+          >
+            {username}
+          </button>
+        )}
+      </div>
     </header>
   );
 }

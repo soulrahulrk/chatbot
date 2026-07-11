@@ -1,7 +1,12 @@
 import { useState } from 'react';
 
-function ChatInput({ onSend, disabled }) {
+function ChatInput({ onSend, onTyping, disabled }) {
   const [text, setText] = useState('');
+
+  const handleChange = (event) => {
+    setText(event.target.value);
+    onTyping?.();
+  };
 
   const handleSend = () => {
     const trimmed = text.trim();
@@ -24,7 +29,7 @@ function ChatInput({ onSend, disabled }) {
       <div className="flex items-end gap-2">
         <textarea
           value={text}
-          onChange={(event) => setText(event.target.value)}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
           rows={1}
