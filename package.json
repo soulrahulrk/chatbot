@@ -1,0 +1,24 @@
+{
+  "name": "realtime-chat-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-stack real-time chat application (React + Vite, Node/Express, Socket.io, MongoDB Atlas).",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n SERVER,CLIENT -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
+    "server": "npm run dev -w server",
+    "client": "npm run dev -w client",
+    "start": "npm run start -w server",
+    "build": "npm run build -w client",
+    "lint": "npm run lint -w client"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

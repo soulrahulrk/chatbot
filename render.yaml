@@ -1,0 +1,22 @@
+# Render Blueprint — deploys the Express/Socket.io API as a Web Service.
+# Usage: Render Dashboard -> New -> Blueprint -> select this repository.
+# See README.md "Deployment" section for the manual (non-blueprint) setup steps.
+services:
+  - type: web
+    name: chat-server
+    env: node
+    plan: free
+    region: oregon
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGO_URI
+        sync: false
+      - key: CLIENT_URL
+        sync: false
