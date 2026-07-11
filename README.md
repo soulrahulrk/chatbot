@@ -21,9 +21,10 @@ No Firebase, no polling, no Supabase, no third-party realtime services — realt
 11. [Error Handling](#error-handling)
 12. [Testing Instructions](#testing-instructions)
 13. [Deployment](#deployment)
-14. [Assumptions](#assumptions)
-15. [Future Improvements](#future-improvements)
-16. [Screenshots](#screenshots)
+14. [Design Decisions](#design-decisions)
+15. [Assumptions](#assumptions)
+16. [Future Improvements](#future-improvements)
+17. [Screenshots](#screenshots)
 
 ---
 
@@ -350,6 +351,17 @@ curl -X POST http://localhost:5000/api/messages \
 2. Deploy the `client` directory (build command `npm run build`, publish directory `dist`) to Vercel, Netlify, or a Render Static Site.
 3. Set `VITE_API_URL` and `VITE_SOCKET_URL` in that host's environment variables to your deployed backend's URL (e.g. `https://chat-server.onrender.com/api` and `https://chat-server.onrender.com`).
 4. Update the backend's `CLIENT_URL` env var to the deployed frontend's URL so CORS/Socket.io accept it.
+
+## Design Decisions
+
+- **REST for history, Socket.io for delivery, both write through one service.** `message.service.js` is the single place that validates and persists a message; both the REST controller (`POST /api/messages`) and the Socket.io handler (`send_message`) call it. This guarantees identical validation/behavior regardless of entry point and avoids duplicating logic — a direct consequence of the "no duplicated code" requirement.
+- **Two broadcast events instead of one.** `receive_message` is emitted after a socket-originated send, `new_message` after a REST-originated one. The frontend listens to both and merges by `_id`. This means a message created via curl/Postman (bypassing the UI entirely) still reaches every live client, not just messages sent through the chat box — a stronger guarantee than a single shared event would give for the same amount of code.
+- **History load is REST, live updates are sockets.** On mount, `useMessages` fetches `GET /api/messages` once to hydrate state before the socket listeners take over. This is what makes "refresh never loses messages" true without needing the socket layer to replay history.
+- **MVC-style layered backend** (`routes → controllers → services → models`, cross-cutting concerns in `middlewares/`/`utils/`) was chosen over a flatter structure so the Socket.io handlers could reuse the service layer without reaching into controllers — controllers and socket handlers are two thin entry points over the same core logic.
+- **npm workspaces monorepo** (root `package.json` with `server`/`client` as workspaces) so the whole project installs with one `npm install` and runs with one `npm run dev`, rather than requiring two separate installs/terminals.
+- **Plain Tailwind, no component library.** The brief asked for a clean custom UI; a component kit would fight that requirement and add bundle weight for a small number of screens.
+- **Client-side display name instead of real authentication.** Neither brief specifies a user/auth model, and the `Message` schema only has `username` + `message`. A lightweight join modal that stores the name in `localStorage` satisfies "username-based dummy login" (a bonus item) without over-building an auth system nothing else depends on.
+- **MongoDB/Mongoose over SQLite.** Chat messages are naturally schema-light documents, and Mongoose's `timestamps: true` gives `createdAt`/`updatedAt` for free alongside the explicit `timestamp` field the spec calls out.
 
 ## Assumptions
 
