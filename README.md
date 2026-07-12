@@ -4,6 +4,10 @@ A full-stack real-time chat application built with **React (Vite)**, **Node.js /
 
 No Firebase, no polling, no Supabase, no third-party realtime services — realtime delivery is Socket.io only.
 
+**Live demo:** [chatbot-client-opal.vercel.app](https://chatbot-client-opal.vercel.app/) (frontend) · [chat-server-fefo.onrender.com/api/health](https://chat-server-fefo.onrender.com/api/health) (backend health check)
+
+> The backend runs on Render's free tier, which spins down after inactivity — the first request after a period of idle time can take 30-60 seconds to wake it back up.
+
 ---
 
 ## Table of Contents
